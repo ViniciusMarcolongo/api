@@ -1,15 +1,16 @@
-const mysql = require('mysql2');
+const { Client } = require('pg');
 
-// Configuração do banco de dados
-const db = mysql.createConnection({
+// Configuração do banco de dados PostgreSQL
+const client = new Client({
     host: 'unfailingly-pertinent-vulture.data-1.use1.tembo.io',
     user: 'postgres',
     password: 'EPLbeW54dAoYD44U',
     database: 'zonaazul',
+    port: 5432,
 });
 
-// Testa a conexão com o banco de dados
-db.connect(err => {
+// Conexão ao banco de dados
+client.connect(err => {
     if (err) {
         console.error('Erro ao conectar ao banco de dados:', err);
         return;
@@ -17,7 +18,7 @@ db.connect(err => {
     console.log('Conectado ao banco de dados!');
 });
 
-// Função da API Vercel
+// Função da API
 module.exports = async (req, res) => {
     if (req.method === 'POST') {
         const { cpf } = req.body;
@@ -32,15 +33,15 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'CPF inválido.' });
         }
 
-        const query = 'SELECT nome FROM usuarios WHERE cpf = ?';
-        db.query(query, [sanitizedCpf], (err, results) => {
+        const query = 'SELECT nome FROM usuarios WHERE cpf = $1'; // Usando parâmetro de forma segura
+        client.query(query, [sanitizedCpf], (err, results) => {
             if (err) {
                 console.error('Erro ao consultar o banco de dados:', err);
                 return res.status(500).json({ error: 'Erro ao consultar o banco de dados.' });
             }
 
-            if (results.length > 0) {
-                return res.json({ nome: results[0].nome });
+            if (results.rows.length > 0) {
+                return res.json({ nome: results.rows[0].nome });
             } else {
                 return res.status(404).json({ error: 'Usuário não encontrado.' });
             }
