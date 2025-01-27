@@ -2,9 +2,9 @@ const mysql = require('mysql2');
 
 // Configuração do banco de dados
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: 'admin',
+    host: 'unfailingly-pertinent-vulture.data-1.use1.tembo.io',
+    user: 'postgres',
+    password: 'EPLbeW54dAoYD44U',
     database: 'zonaazul',
 });
 
