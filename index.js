@@ -1,24 +1,31 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
+const fs = require('fs');
 
-// Configuração do banco de dados PostgreSQL
-const client = new Client({
-    host: 'unfailingly-pertinent-vulture.data-1.use1.tembo.io',
-    user: 'postgres',
-    password: 'EPLbeW54dAoYD44U',
-    database: 'postgres',
-    port: 5432,
+// Configuração de conexão
+const connectionString =
+	'postgresql://postgres:EPLbeW54dAoYD44U@unfailingly-pertinent-vulture.data-1.use1.tembo.io:5432/postgres';
+
+const pool = new Pool({
+	connectionString: connectionString,
+	ssl: {
+		ca: fs.readFileSync('C:/xampp/htdocs/api/ca.crt').toString(),
+	},
 });
 
-// Conexão ao banco de dados
-client.connect(err => {
-    if (err) {
-        console.error('Erro ao conectar ao banco de dados:', err);
-        return;
-    }
-    console.log('Conectado ao banco de dados!');
-});
+// Função para testar a conexão com o banco de dados
+async function testQuery() {
+	const client = await pool.connect();
+	try {
+		const response = await client.query('SELECT 1');
+		console.log(response.rows[0]['?column?']);
+	} finally {
+		client.release();
+	}
+}
 
-// Função da API
+testQuery();
+
+// Função da API (corrigido para usar o pool de conexões)
 module.exports = async (req, res) => {
     if (req.method === 'POST') {
         const { cpf } = req.body;
@@ -33,19 +40,20 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'CPF inválido.' });
         }
 
-        const query = 'SELECT nome FROM usuarios WHERE cpf = $1'; // Usando parâmetro de forma segura
-        client.query(query, [sanitizedCpf], (err, results) => {
-            if (err) {
-                console.error('Erro ao consultar o banco de dados:', err);
-                return res.status(500).json({ error: 'Erro ao consultar o banco de dados.' });
-            }
+        // Usando o pool para realizar a consulta
+        const query = 'SELECT nome FROM usuarios WHERE cpf = $1'; // Usando parâmetro seguro
+        try {
+            const { rows } = await pool.query(query, [sanitizedCpf]);
 
-            if (results.rows.length > 0) {
-                return res.json({ nome: results.rows[0].nome });
+            if (rows.length > 0) {
+                return res.json({ nome: rows[0].nome });
             } else {
                 return res.status(404).json({ error: 'Usuário não encontrado.' });
             }
-        });
+        } catch (err) {
+            console.error('Erro ao consultar o banco de dados:', err);
+            return res.status(500).json({ error: 'Erro ao consultar o banco de dados.' });
+        }
     } else {
         res.status(405).json({ error: 'Método não permitido.' });
     }
