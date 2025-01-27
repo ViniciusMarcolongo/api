@@ -12,6 +12,19 @@ const pool = new Pool({
 	},
 });
 
+// Função para testar a conexão com o banco de dados
+async function testQuery() {
+	const client = await pool.connect();
+	try {
+		const response = await client.query('SELECT 1');
+		console.log(response.rows[0]['?column?']);
+	} finally {
+		client.release();
+	}
+}
+
+testQuery();
+
 // Função da API (corrigido para usar o pool de conexões)
 module.exports = async (req, res) => {
     if (req.method === 'POST') {
