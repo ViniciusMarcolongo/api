@@ -5,7 +5,7 @@ const client = new Client({
     host: 'unfailingly-pertinent-vulture.data-1.use1.tembo.io',
     user: 'postgres',
     password: 'EPLbeW54dAoYD44U',
-    database: 'zonaazul',
+    database: 'postgres',
     port: 5432,
 });
 
