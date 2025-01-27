@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 
+
 // Configuração de conexão
 const connectionString =
 	'postgresql://postgres:EPLbeW54dAoYD44U@unfailingly-pertinent-vulture.data-1.use1.tembo.io:5432/postgres';
@@ -8,7 +9,7 @@ const connectionString =
 const pool = new Pool({
 	connectionString: connectionString,
 	ssl: {
-		ca: fs.readFileSync('C:/xampp/htdocs/api/ca.crt').toString(),
+		ca: fs.readFileSync('./certs/ca.crt').toString(),
 	},
 });
 
