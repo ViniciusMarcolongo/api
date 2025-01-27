@@ -6,11 +6,15 @@ const fs = require('fs');
 const connectionString =
 	'postgresql://postgres:EPLbeW54dAoYD44U@unfailingly-pertinent-vulture.data-1.use1.tembo.io:5432/postgres';
 
+const path = require('path');
+const caCertPath = path.join(__dirname, 'certs', 'ca.crt');
+  
 const pool = new Pool({
 	connectionString: connectionString,
 	ssl: {
-		ca: fs.readFileSync('./certs/ca.crt').toString(),
-	},
+    ca: fs.readFileSync(caCertPath).toString(),
+}
+
 });
 
 // Função para testar a conexão com o banco de dados
