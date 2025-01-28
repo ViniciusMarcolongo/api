@@ -49,45 +49,35 @@ module.exports = async (req, res) => {
 				const sanitizedPlaca = placa.trim().toUpperCase();
 
 				// Verificar se a placa já está cadastrada
-				if (action === 'check_plate') {
-          // Verifica se o CPF foi fornecido
-          if (!cpf) {
-              return res.status(400).json({ error: 'CPF não fornecido.' });
-          }
-      
-          // Sanitiza o CPF (remove caracteres não numéricos)
-          const sanitizedCpf = cpf.replace(/\D/g, '');
-          if (sanitizedCpf.length !== 11) {
-              return res.status(400).json({ error: 'CPF inválido.' });
-          }
-      
-          try {
-              // Verifica se já existe uma placa associada ao CPF
-              const query = 'SELECT placa FROM veiculos WHERE cpf = $1';
-              const { rows } = await pool.query(query, [sanitizedCpf]);
-      
-              if (rows.length > 0) {
-                  return res.json({
-                      message: 'Placa(s) já cadastrada(s).',
-                      placas: rows.map(row => row.placa)
-                  });
-              } else {
-                  return res.json({ message: 'Nenhuma placa cadastrada para este CPF.' });
-              }
-          } catch (err) {
-              console.error('Erro ao consultar o banco de dados:', err);
-              return res.status(500).json({ error: 'Erro ao consultar o banco de dados.' });
-          }
-      }
-      
+        const checkPlacaQuery = 'SELECT placa FROM veiculos WHERE cpf = $1 AND placa = $2';
+				const { rows: placaRows } = await pool.query(checkPlacaQuery, [sanitizedCpf, sanitizedPlaca]);
+
+				if (placaRows.length > 0) {
+					return res.status(400).json({ error: 'Esta placa já está cadastrada para este CPF.' });
+				}
+
 				// Query para inserir a placa
-				const query = `
+				const insertPlacaQuery = `
 					INSERT INTO veiculos (cpf, placa)
 					VALUES ($1, $2)
+					ON CONFLICT (placa) DO NOTHING
 				`;
 
-				await pool.query(query, [sanitizedCpf, sanitizedPlaca]);
+				await pool.query(insertPlacaQuery, [sanitizedCpf, sanitizedPlaca]);
 				return res.json({ success: 'Placa cadastrada com sucesso.' });
+			} else if (action === 'check_plate') {
+				// Verifica se já existe uma placa associada ao CPF
+				const query = 'SELECT placa FROM veiculos WHERE cpf = $1';
+				const { rows } = await pool.query(query, [sanitizedCpf]);
+
+				if (rows.length > 0) {
+					return res.json({
+						message: 'Placa(s) já cadastrada(s).',
+						placas: rows.map(row => row.placa),
+					});
+				} else {
+					return res.json({ message: 'Nenhuma placa cadastrada para este CPF.' });
+				}
 			} else {
 				return res.status(400).json({ error: 'Ação inválida.' });
 			}
