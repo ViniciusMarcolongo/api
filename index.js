@@ -71,14 +71,21 @@ module.exports = async (req, res) => {
 				// Sanitiza a placa
 				const sanitizedPlaca = placa.trim().toUpperCase();
 
-				// Verifica se a placa já está cadastrada
-				const checkPlateQuery = 'SELECT * FROM veiculos WHERE placa = $1';
-				const { rows } = await pool.query(checkPlateQuery, [sanitizedPlaca]);
+        // Validação da placa: deve ter exatamente 7 caracteres (letras e números)
+				const placaRegex = /^[A-Z0-9]{7}$/;
+				if (!placaRegex.test(sanitizedPlaca)) {
+					return res.status(400).json({
+						error: 'Placa inválida. A placa deve ter exatamente 7 caracteres, com letras e números.',
+					});
+				}
 
-				if (rows.length > 0) {
+				// Verifica se a placa já está cadastrada
+			const checkQuery = 'SELECT placa FROM veiculos WHERE placa = $1';
+				const { rows: existingPlates } = await pool.query(checkQuery, [sanitizedPlaca]);
+
+				if (existingPlates.length > 0) {
 					return res.json({
-						success: 'A placa já está cadastrada.',
-						placa: sanitizedPlaca
+						error: `A placa ${sanitizedPlaca} já está cadastrada.`,
 					});
 				}
 
