@@ -85,7 +85,7 @@ module.exports = async (req, res) => {
 
 				if (existingPlates.length > 0) {
 					return res.json({
-						error: `A placa ${sanitizedPlaca} já está cadastrada.`,
+						success: `A placa ${sanitizedPlaca} já está cadastrada.`,
 					});
 				}
 
