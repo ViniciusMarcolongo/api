@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const caCertPath = path.join(__dirname, 'certs', 'ca.crt');
 
-
 // Configuração de conexão com o banco de dados
 const connectionString =
 	'postgresql://postgres:EPLbeW54dAoYD44U@unfailingly-pertinent-vulture.data-1.use1.tembo.io:5432/postgres';
@@ -11,9 +10,8 @@ const connectionString =
 const pool = new Pool({
 	connectionString: connectionString,
 	ssl: {
-    ca: fs.readFileSync(caCertPath).toString(),
-}
-
+		ca: fs.readFileSync(caCertPath).toString(),
+	}
 });
 
 // Função da API
@@ -50,11 +48,19 @@ module.exports = async (req, res) => {
 				// Sanitiza a placa
 				const sanitizedPlaca = placa.trim().toUpperCase();
 
+				// Verificar se a placa já está cadastrada
+				const checkPlacaQuery = 'SELECT * FROM veiculos WHERE placa = $1';
+				const { rows: placaExists } = await pool.query(checkPlacaQuery, [sanitizedPlaca]);
+
+				if (placaExists.length > 0) {
+					// A placa já está cadastrada
+					return res.json({ message: 'Esta placa já está cadastrada.' });
+				}
+
 				// Query para inserir a placa
 				const query = `
 					INSERT INTO veiculos (cpf, placa)
 					VALUES ($1, $2)
-					ON CONFLICT (placa) DO NOTHING
 				`;
 
 				await pool.query(query, [sanitizedCpf, sanitizedPlaca]);
