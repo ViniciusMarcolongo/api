@@ -1,5 +1,8 @@
 const { Pool } = require('pg');
 const fs = require('fs');
+const path = require('path');
+const caCertPath = path.join(__dirname, 'certs', 'ca.crt');
+
 
 // Configuração de conexão com o banco de dados
 const connectionString =
@@ -8,8 +11,9 @@ const connectionString =
 const pool = new Pool({
 	connectionString: connectionString,
 	ssl: {
-		ca: fs.readFileSync('./certs/ca.crt').toString(), // Certificado SSL
-	},
+    ca: fs.readFileSync(caCertPath).toString(),
+}
+
 });
 
 // Função da API
