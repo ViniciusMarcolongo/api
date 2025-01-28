@@ -56,7 +56,7 @@ module.exports = async (req, res) => {
 						placas: placas
 					});
 				} else {
-					return res.json({
+					return res.status(404).json({
 						success: 'Nenhuma placa encontrada para este CPF.'
 					});
 				}
