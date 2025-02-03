@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
 		}
 
 		// Sanitiza o telefone: remove "+55", parênteses e mantém apenas números
-		const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '');
+		const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '()');
 
 		if (sanitizedPhone.length < 10 || sanitizedPhone.length > 11) {
 			return res.status(400).json({ error: 'Número de telefone inválido.' });
