@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
 		}
 
 		// Sanitiza o telefone: remove "+55", parênteses e mantém apenas números
-		const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '()');
+		const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '');
 
 		if (sanitizedPhone.length < 10 || sanitizedPhone.length > 11) {
 			return res.status(400).json({ error: 'Número de telefone inválido.' });
@@ -34,7 +34,11 @@ module.exports = async (req, res) => {
 		try {
 			// Busca o nome do usuário pelo telefone
 			if (action === 'search') {
-				const query = 'SELECT nome FROM usuarios WHERE telefone = $1';
+				const query = `
+					SELECT nome 
+					FROM usuarios 
+					WHERE REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', '') = $1
+				`;
 				const { rows } = await pool.query(query, [sanitizedPhone]);
 
 				if (rows.length > 0) {
@@ -46,7 +50,11 @@ module.exports = async (req, res) => {
 
 			// Verifica placas cadastradas pelo telefone
 			if (action === 'verificar_placas') {
-				const checkPlatesQuery = 'SELECT placa FROM veiculos WHERE telefone = $1';
+				const checkPlatesQuery = `
+					SELECT placa 
+					FROM veiculos 
+					WHERE REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', '') = $1
+				`;
 				const { rows } = await pool.query(checkPlatesQuery, [sanitizedPhone]);
 
 				if (rows.length > 0) {
@@ -102,10 +110,14 @@ module.exports = async (req, res) => {
 					placa: sanitizedPlaca
 				});
 			}
-      
+
       // Consulta de saldo pelo telefone
 			if (action === 'consultar_saldo') {
-				const query = 'SELECT saldo FROM usuarios WHERE telefone = $1';
+				const query = `
+					SELECT saldo 
+					FROM usuarios 
+					WHERE REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', '') = $1
+				`;
 				const { rows } = await pool.query(query, [sanitizedPhone]);
 
 				if (rows.length > 0) {
