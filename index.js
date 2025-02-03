@@ -102,6 +102,18 @@ module.exports = async (req, res) => {
 					placa: sanitizedPlaca
 				});
 			}
+      
+      // Consulta de saldo pelo telefone
+			if (action === 'consultar_saldo') {
+				const query = 'SELECT saldo FROM usuarios WHERE telefone = $1';
+				const { rows } = await pool.query(query, [sanitizedPhone]);
+
+				if (rows.length > 0) {
+					return res.json({ success: 'Saldo encontrado.', saldo: rows[0].saldo });
+				} else {
+					return res.status(404).json({ error: 'Usuário não encontrado.' });
+				}
+			}
 
 			return res.status(400).json({ error: 'Ação inválida.' });
 		} catch (err) {
