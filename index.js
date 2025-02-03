@@ -3,39 +3,39 @@ const fs = require('fs');
 const path = require('path');
 const caCertPath = path.join(__dirname, 'certs', 'ca.crt');
 
-// Configuração de conexão com o banco de dados
+// Configuração do banco
 const connectionString =
 	'postgresql://postgres:EPLbeW54dAoYD44U@unfailingly-pertinent-vulture.data-1.use1.tembo.io:5432/postgres';
 
 const pool = new Pool({
 	connectionString: connectionString,
 	ssl: {
-    ca: fs.readFileSync(caCertPath).toString(),
+		ca: fs.readFileSync(caCertPath).toString(),
 	}
 });
 
 // Função da API
 module.exports = async (req, res) => {
 	if (req.method === 'POST') {
-		const { cpf, placa, action } = req.body;
+		const { phone, placa, action } = req.body;
 
-		// Validação do CPF
-		if (!cpf) {
-			return res.status(400).json({ error: 'CPF não fornecido.' });
+		// Validação do telefone
+		if (!phone) {
+			return res.status(400).json({ error: 'Número de telefone não fornecido.' });
 		}
 
-		// Sanitiza o CPF (remove caracteres não numéricos)
-		const sanitizedCpf = cpf.replace(/\D/g, '');
+		// Sanitiza o telefone: remove "+55", parênteses e mantém apenas números
+		const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '');
 
-		if (sanitizedCpf.length !== 11) {
-			return res.status(400).json({ error: 'CPF inválido.' });
+		if (sanitizedPhone.length < 10 || sanitizedPhone.length > 11) {
+			return res.status(400).json({ error: 'Número de telefone inválido.' });
 		}
 
 		try {
-			// Verifica o nome do usuário
+			// Busca o nome do usuário pelo telefone
 			if (action === 'search') {
-				const query = 'SELECT nome FROM usuarios WHERE cpf = $1';
-				const { rows } = await pool.query(query, [sanitizedCpf]);
+				const query = 'SELECT nome FROM usuarios WHERE telefone = $1';
+				const { rows } = await pool.query(query, [sanitizedPhone]);
 
 				if (rows.length > 0) {
 					return res.json({ nome: rows[0].nome });
@@ -44,10 +44,10 @@ module.exports = async (req, res) => {
 				}
 			}
 
-			// Verifica placas cadastradas
+			// Verifica placas cadastradas pelo telefone
 			if (action === 'verificar_placas') {
-				const checkPlatesQuery = 'SELECT placa FROM veiculos WHERE cpf = $1';
-				const { rows } = await pool.query(checkPlatesQuery, [sanitizedCpf]);
+				const checkPlatesQuery = 'SELECT placa FROM veiculos WHERE telefone = $1';
+				const { rows } = await pool.query(checkPlatesQuery, [sanitizedPhone]);
 
 				if (rows.length > 0) {
 					const placas = rows.map(row => row.placa);
@@ -57,12 +57,12 @@ module.exports = async (req, res) => {
 					});
 				} else {
 					return res.status(404).json({
-						success: 'Nenhuma placa encontrada para este CPF.'
+						success: 'Nenhuma placa encontrada para este número.',
 					});
 				}
 			}
 
-			// Cadastro de placa
+			// Cadastro de placa vinculada ao telefone
 			if (action === 'add_plate') {
 				if (!placa) {
 					return res.status(400).json({ error: 'Placa não fornecida.' });
@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
 				// Sanitiza a placa
 				const sanitizedPlaca = placa.trim().toUpperCase();
 
-        // Validação da placa: deve ter exatamente 7 caracteres (letras e números)
+				// Validação da placa: deve ter exatamente 7 caracteres (letras e números)
 				const placaRegex = /^[A-Z0-9]{7}$/;
 				if (!placaRegex.test(sanitizedPlaca)) {
 					return res.status(400).json({
@@ -80,7 +80,7 @@ module.exports = async (req, res) => {
 				}
 
 				// Verifica se a placa já está cadastrada
-			const checkQuery = 'SELECT placa FROM veiculos WHERE placa = $1';
+				const checkQuery = 'SELECT placa FROM veiculos WHERE placa = $1';
 				const { rows: existingPlates } = await pool.query(checkQuery, [sanitizedPlaca]);
 
 				if (existingPlates.length > 0) {
@@ -89,13 +89,13 @@ module.exports = async (req, res) => {
 					});
 				}
 
-				// Insere a nova placa
+				// Insere a nova placa vinculada ao telefone
 				const insertPlateQuery = `
-					INSERT INTO veiculos (cpf, placa)
+					INSERT INTO veiculos (telefone, placa)
 					VALUES ($1, $2)
 				`;
 
-				await pool.query(insertPlateQuery, [sanitizedCpf, sanitizedPlaca]);
+				await pool.query(insertPlateQuery, [sanitizedPhone, sanitizedPlaca]);
 
 				return res.json({
 					success: 'Placa cadastrada com sucesso.',
