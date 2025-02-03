@@ -127,6 +127,49 @@ module.exports = async (req, res) => {
 				}
 			}
 
+      if (action === 'validar_placa') {
+        if (!validarplaca || !pagamento || !horas) {
+            return res.status(400).json({ error: 'Dados incompletos para validação da placa.' });
+        }
+
+        // Definição de valores
+        const valor = horas === '1' ? 2.00 : 4.00;
+        const duracaoHoras = parseInt(horas);
+        const now = new Date();
+        const vencimento = new Date(now.getTime() + duracaoHoras * 60 * 60 * 1000);
+
+        if (pagamento === '1') { // Pagamento via saldo
+            const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1';
+            const { rows } = await pool.query(saldoQuery, [sanitizedPhone]);
+
+            if (rows.length === 0) {
+                return res.status(404).json({ error: 'Usuário não encontrado.' });
+            }
+
+            const saldoAtual = parseFloat(rows[0].saldo);
+            if (saldoAtual < valor) {
+                return res.status(400).json({ error: 'Saldo insuficiente.' });
+            }
+
+            // Desconta saldo
+            const updateSaldoQuery = 'UPDATE usuarios SET saldo = saldo - $1 WHERE telefone = $2';
+            await pool.query(updateSaldoQuery, [valor, sanitizedPhone]);
+        }
+
+        // Insere a validação no banco
+        const insertValidationQuery = `
+            INSERT INTO validacoes (telefone, placa, horario_validacao, horario_vencimento)
+            VALUES ($1, $2, $3, $4)
+        `;
+        await pool.query(insertValidationQuery, [sanitizedPhone, validarplaca, now, vencimento]);
+
+        return res.json({
+            success: 'Placa validada com sucesso.',
+            horario_validacao: now,
+            horario_vencimento: vencimento
+        });
+    }
+
 			return res.status(400).json({ error: 'Ação inválida.' });
 		} catch (err) {
 			console.error('Erro ao consultar ou atualizar o banco de dados:', err);
