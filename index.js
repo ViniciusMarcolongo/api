@@ -17,7 +17,7 @@ const pool = new Pool({
 // Função da API
 module.exports = async (req, res) => {
 	if (req.method === 'POST') {
-		const { phone, placa, action } = req.body;
+		const { phone, placa, action, pagamento, horas } = req.body;
 
 		// Validação do telefone
 		if (!phone) {
@@ -158,10 +158,18 @@ module.exports = async (req, res) => {
 
         // Insere a validação no banco
         const insertValidationQuery = `
-            INSERT INTO validacoes (telefone, placa, horario_validacao, horario_vencimento)
-            VALUES ($1, $2, $3, $4)
+          INSERT INTO validacoes (telefone, placa, pagamento, horas, valor_pago, horario_validacao, horario_vencimento)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
         `;
-        await pool.query(insertValidationQuery, [sanitizedPhone, validarplaca, now, vencimento]);
+        await pool.query(insertValidationQuery, [
+          sanitizedPhone,
+          validarplaca, 
+          pagamento, // 'saldo' ou 'pix'
+          parseInt(horas), // 1 ou 2
+          valor, // R$ 2,00 ou R$ 4,00
+          now.toISOString(), 
+          vencimento.toISOString() 
+      ]);
 
         return res.json({
             success: 'Placa validada com sucesso.',
