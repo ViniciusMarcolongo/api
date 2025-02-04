@@ -128,55 +128,67 @@ module.exports = async (req, res) => {
 			}
 
       if (action === 'validar_placa') {
-        if (!validarplaca || !pagamento || !horas) {
+        if (!placa || !pagamento || !horas) {
             return res.status(400).json({ error: 'Dados incompletos para validação da placa.' });
         }
-
-        // Definição de valores
+    
+        // Sanitiza a placa
+        const sanitizedPlaca = placa.trim().toUpperCase();
+    
+        // Define o valor com base na duração
         const valor = horas === '1' ? 2.00 : 4.00;
         const duracaoHoras = parseInt(horas);
         const now = new Date();
         const vencimento = new Date(now.getTime() + duracaoHoras * 60 * 60 * 1000);
-
-        if (pagamento === '1') { // Pagamento via saldo
-            const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1';
-            const { rows } = await pool.query(saldoQuery, [sanitizedPhone]);
-
-            if (rows.length === 0) {
-                return res.status(404).json({ error: 'Usuário não encontrado.' });
+    
+        try {
+            if (pagamento === '1') { // Pagamento via saldo
+                const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1';
+                const { rows } = await pool.query(saldoQuery, [sanitizedPhone]);
+    
+                if (rows.length === 0) {
+                    return res.status(404).json({ error: 'Usuário não encontrado.' });
+                }
+    
+                const saldoAtual = parseFloat(rows[0].saldo);
+                if (saldoAtual < valor) {
+                    return res.status(400).json({ error: 'Saldo insuficiente.' });
+                }
+    
+                // Desconta saldo
+                const updateSaldoQuery = 'UPDATE usuarios SET saldo = saldo - $1 WHERE telefone = $2';
+                await pool.query(updateSaldoQuery, [valor, sanitizedPhone]);
             }
-
-            const saldoAtual = parseFloat(rows[0].saldo);
-            if (saldoAtual < valor) {
-                return res.status(400).json({ error: 'Saldo insuficiente.' });
-            }
-
-            // Desconta saldo
-            const updateSaldoQuery = 'UPDATE usuarios SET saldo = saldo - $1 WHERE telefone = $2';
-            await pool.query(updateSaldoQuery, [valor, sanitizedPhone]);
+    
+            // Converte "1" para "saldo" e "2" para "pix"
+            const metodoPagamento = pagamento === '1' ? 'saldo' : 'pix';
+    
+            // Insere a validação no banco
+            const insertValidationQuery = `
+                INSERT INTO validacoes (telefone, placa, pagamento, horas, valor_pago, horario_validacao, horario_vencimento)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `;
+            await pool.query(insertValidationQuery, [
+                sanitizedPhone,
+                sanitizedPlaca,
+                metodoPagamento, // 'saldo' ou 'pix'
+                duracaoHoras, // 1 ou 2
+                valor, // R$ 2,00 ou R$ 4,00
+                now.toISOString(),
+                vencimento.toISOString()
+            ]);
+    
+            return res.json({
+                success: 'Placa validada com sucesso.',
+                horario_validacao: now,
+                horario_vencimento: vencimento
+            });
+        } catch (err) {
+            console.error('Erro ao consultar ou atualizar o banco de dados:', err);
+            return res.status(500).json({ error: 'Erro ao consultar ou atualizar o banco de dados.' });
         }
-
-        // Insere a validação no banco
-        const insertValidationQuery = `
-          INSERT INTO validacoes (telefone, placa, pagamento, horas, valor_pago, horario_validacao, horario_vencimento)
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
-        `;
-        await pool.query(insertValidationQuery, [
-          sanitizedPhone,
-          validarplaca, 
-          pagamento, // 'saldo' ou 'pix'
-          parseInt(horas), // 1 ou 2
-          valor, // R$ 2,00 ou R$ 4,00
-          now.toISOString(), 
-          vencimento.toISOString() 
-      ]);
-
-        return res.json({
-            success: 'Placa validada com sucesso.',
-            horario_validacao: now,
-            horario_vencimento: vencimento
-        });
     }
+    
 
 			return res.status(400).json({ error: 'Ação inválida.' });
 		} catch (err) {
