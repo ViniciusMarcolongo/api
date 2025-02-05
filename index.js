@@ -121,9 +121,8 @@ module.exports = async (req, res) => {
 
 			
 				const insertPlateQuery = `
-					INSERT INTO veiculos (telefone, placa)
-					VALUES ($1, $2)
-					AND idOrgao = $2
+					INSERT INTO veiculos (telefone, placa, idorgao)
+					VALUES ($1, $2, $3)
 				`;
 
 				await pool.query(insertPlateQuery, [sanitizedPhone, sanitizedPlaca, idOrgao]);
