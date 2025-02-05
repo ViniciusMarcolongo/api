@@ -150,70 +150,90 @@ module.exports = async (req, res) => {
 				}
 			}
 
-      if (action === 'validar_placa') {
-        if (!placa || !pagamento || !horas) {
-            return res.status(400).json({ error: 'Dados incompletos para validação da placa.' });
-        }
-    
-       
-        const sanitizedPlaca = placa.trim().toUpperCase();
-    
-        
-        const valor = horas === '1' ? 2.00 : 4.00;
-        const duracaoHoras = parseInt(horas);
-        const now = new Date();
-        const vencimento = new Date(now.getTime() + duracaoHoras * 60 * 60 * 1000);
-    
-        try {
-            if (pagamento === '1') { 
-                const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1 AND idOrgao = $2';
+			if (action === 'verificar_saldo') {
+				if (!telefone || !horas || !idOrgao) {
+					return res.status(400).json({ error: 'Dados incompletos para verificar o saldo.' });
+				}
+			
+				const sanitizedPhone = telefone.trim();
+				const valor = horas === '1' ? 2.00 : 4.00;  // Valor baseado nas horas selecionadas
+			
+				try {
+					// Consulta o saldo do usuário
+					const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1 AND idOrgao = $2';
+					const { rows } = await pool.query(saldoQuery, [sanitizedPhone, idOrgao]);
+			
+					if (rows.length === 0) {
+						return res.status(404).json({ error: 'Usuário não encontrado.' });
+					}
+			
+					const saldoAtual = parseFloat(rows[0].saldo);
+			
+					// Verifica se o saldo é suficiente
+					if (saldoAtual < valor) {
+						return res.status(400).json({ error: 'Saldo insuficiente para validar a placa.' });
+					}
+			
+					// Retorna o saldo e informa que ele tem saldo suficiente
+					return res.json({ saldo: saldoAtual, sucesso: 'Saldo suficiente para validar a placa.' });
+			
+				} catch (error) {
+					console.error('Erro ao verificar saldo:', error);
+					return res.status(500).json({ error: 'Erro interno do servidor.' });
+				}
+			}
+			
 
-				
-                const { rows } = await pool.query(saldoQuery, [sanitizedPhone, idOrgao]);
-    
-                if (rows.length === 0) {
-                    return res.status(404).json({ error: 'Usuário não encontrado.' });
-                }
-    
-                const saldoAtual = parseFloat(rows[0].saldo);
-                if (saldoAtual < valor) {
-                    return res.status(400).json({ error: 'Saldo insuficiente.' });
-                }
-    
-               
-                const updateSaldoQuery = 'UPDATE usuarios SET saldo = saldo - $1 WHERE telefone = $2 AND idOrgao = $3';
-                await pool.query(updateSaldoQuery, [valor, sanitizedPhone, idOrgao]);
-            }
-    
-            
-            const metodoPagamento = pagamento === '1' ? 'saldo' : 'pix';
-    
-
-            const insertValidationQuery = `
-                INSERT INTO validacoes (telefone, placa, pagamento, horas, valor_pago, horario_validacao, horario_vencimento, idOrgao)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            `;
-            await pool.query(insertValidationQuery, [
-                sanitizedPhone,
-                sanitizedPlaca,
-                metodoPagamento,
-                duracaoHoras, 
-                valor, 
-                now.toISOString(),
-                vencimento.toISOString(),
-				idOrgao
-            ]);
-    
-            return res.json({
-                success: 'Placa validada com sucesso.',
-                horario_validacao: now,
-                horario_vencimento: vencimento
-            });
-        } catch (err) {
-            console.error('Erro ao consultar ou atualizar o banco de dados:', err);
-            return res.status(500).json({ error: 'Erro ao consultar ou atualizar o banco de dados.' });
-        }
-    }
+			if (action === 'validar_placa') {
+				if (!placa || !pagamento || !horas) {
+					return res.status(400).json({ error: 'Dados incompletos para validação da placa.' });
+				}
+			
+				const sanitizedPlaca = placa.trim().toUpperCase();
+				const valor = horas === '1' ? 2.00 : 4.00;
+				const duracaoHoras = parseInt(horas);
+			
+				// Ajusta para o horário de Brasília
+				const nowBrasilia = DateTime.now().setZone('America/Sao_Paulo');
+				const vencimentoBrasilia = nowBrasilia.plus({ hours: duracaoHoras });
+			
+				const nowISO = nowBrasilia.toISO();
+				const vencimentoISO = vencimentoBrasilia.toISO();
+			
+				try {
+					if (pagamento === '1') {  // Pagamento via saldo
+						// Realiza a atualização do saldo apenas no momento da validação
+						const updateSaldoQuery = 'UPDATE usuarios SET saldo = saldo - $1 WHERE telefone = $2 AND idOrgao = $3';
+						await pool.query(updateSaldoQuery, [valor, sanitizedPhone, idOrgao]);
+					}
+			
+					// Insere a validação da placa
+					const insertValidationQuery = `
+						INSERT INTO validacoes (telefone, placa, pagamento, horas, valor_pago, horario_validacao, horario_vencimento, idOrgao)
+						VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+					`;
+					await pool.query(insertValidationQuery, [
+						sanitizedPhone,
+						sanitizedPlaca,
+						pagamento === '1' ? 'saldo' : 'pix',
+						duracaoHoras,
+						valor,
+						nowISO,
+						vencimentoISO,
+						idOrgao
+					]);
+			
+					return res.json({
+						success: 'Placa validada com sucesso.',
+						horario_validacao: nowBrasilia.toISO(),
+						horario_vencimento: vencimentoBrasilia.toISO()
+					});
+			
+				} catch (error) {
+					console.error('Erro ao validar placa:', error);
+					return res.status(500).json({ error: 'Erro interno do servidor.' });
+				}
+			}
     
 
 			return res.status(400).json({ error: 'Ação inválida.' });
