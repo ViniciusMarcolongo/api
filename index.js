@@ -160,7 +160,12 @@ module.exports = async (req, res) => {
 			
 				try {
 					// Consulta o saldo do usuário
-					const saldoQuery = 'SELECT saldo FROM usuarios WHERE telefone = $1 AND idOrgao = $2';
+					const saldoQuery = `
+					SELECT saldo 
+					FROM usuarios 
+					WHERE REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', '') = $1
+					AND idOrgao = $2
+				`;
 					const { rows } = await pool.query(saldoQuery, [sanitizedPhone, idOrgao]);
 			
 					if (rows.length === 0) {
