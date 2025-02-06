@@ -193,7 +193,8 @@ module.exports = async (req, res) => {
 				if (!placa || !pagamento || !horas) {
 					return res.status(400).json({ error: 'Dados incompletos para validação da placa.' });
 				}
-			
+
+				const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '');
 				const sanitizedPlaca = placa.trim().toUpperCase();
 				const valor = horas === '1' ? 2.00 : 4.00;
 				const duracaoHoras = parseInt(horas);
