@@ -155,7 +155,7 @@ module.exports = async (req, res) => {
 					return res.status(400).json({ error: 'Dados incompletos para verificar o saldo.' });
 				}
 			
-				const sanitizedPhone = phone.trim();
+				const sanitizedPhone = phone.replace(/\D/g, '').replace(/^55/, '');
 				const valor = horas === '1' ? 2.00 : 4.00;  // Valor baseado nas horas selecionadas
 			
 				try {
