@@ -151,11 +151,11 @@ module.exports = async (req, res) => {
 			}
 
 			if (action === 'verificar_saldo') {
-				if (!telefone || !horas || !idOrgao) {
+				if (!phone || !horas || !idOrgao) {
 					return res.status(400).json({ error: 'Dados incompletos para verificar o saldo.' });
 				}
 			
-				const sanitizedPhone = telefone.trim();
+				const sanitizedPhone = phone.trim();
 				const valor = horas === '1' ? 2.00 : 4.00;  // Valor baseado nas horas selecionadas
 			
 				try {
